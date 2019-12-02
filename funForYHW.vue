@@ -1,7 +1,15 @@
 const plugin = {
+  /************************************
+   *str:url地址
+   ***********************************/
   openUrl: (str) => {
     window.open(str)
   },
+  /************************************
+   *data:需要处理的时间戳数据
+   *type:type=>Date
+   *return:yyyy-MM-dd
+   ***********************************/
   getTime: (date) => {
     if (date && !new Date(date)) {
       throw new TypeError('The correct format was not obtained for function "getTime"')
@@ -12,17 +20,49 @@ const plugin = {
     const data = nowDate.getDate()
     return [year, month.toString()[1] ? month : '0' + month, data.toString()[1] ? data : '0' + data].join('-')
   },
+  /************************************
+   *data:需要深度克隆的数据
+   *type:all
+   *return:data
+   ***********************************/
   cloneData: (data) => {
+    let _this = plugin
+    let type = _this.getDataType(data)
+    let newData = null
+    if (type === 'Array') {
+      newData = []
+      data.forEach((item, index) => {
+        newData[index] = _this.cloneData(item)
+      })
+    } else if (type === 'Object') {
+      newData = {}
+      for (let index in data) {
+        let item = data[index]
+        newData[index] = _this.cloneData(item)
+      }
+    } else {
+      newData = JSON.parse(JSON.stringify(data))
+    }
+    return newData
+  },
+  /************************************
+   *data:需要判断类型的数据
+   *type:all
+   *return:String|Number|Null|Undefined|Object|Array|Function
+   ***********************************/
+  getDataType: (data) => {
     if (data === null) {
       return 'Null'
     } else if (data === undefined) {
       return 'Undefined'
     }
-    return JSON.parse(JSON.stringify(data))
-  },
-  getDataType: (data) => {
     return Object.prototype.toString.call(data).split(' ')[1].split(']')[0]
   },
+  /************************************
+   *data:需要扁平化的数据
+   *type:Object|Array
+   *return:Array|Object
+   ***********************************/
   flatten: (data) => {
     let _this = plugin
     let oldData = _this.cloneData(data)
@@ -69,6 +109,36 @@ const plugin = {
       return oldData
     }
   },
+
+  /************************************
+   *data:需要合并的数据
+   *rule:合并规则
+   *type:Array
+   *return:Array
+   ***********************************/
+
+  /************************************
+   *rule示例
+   *{mainRule:'product_id/id',otherRule:[{name:'image/img'},{name:'product_code'},{name:'number',type:'add'}],childrenName:'other_info',childrenRule:{mainRule:['size/size_name','color']}}
+   *输出：[
+     {
+       id:value,
+       img:value,
+       product_code:value,
+       number:value(add),
+       other_info:[{
+         size_name:value,
+         color:value,
+         childrenMergeInfo:[{},{}]
+       }]
+     }
+   ]
+   *rule参数说明
+   *mainRule:主要合并项（根据该项进行合并），当主要合并项为多个是可以为数组；格式：['size','color'] 。“/”在需要改变其key值时添加，“/”前为处理数据中的key,“/”后为处理后输出数据你为其命名的key
+   *otherRule:其他处理项，name为处理项的key值,type为特殊处理，当前取值仅可为'add'，是在合并时累加该项，当type不存在时  name项会保留在mainRule同一个数据层级，“/”用法参考mainRule
+   *childrenName:命名子合并项key值，默认值childrenMergeInfo，
+   *childrenRule:多层级合并时传入，具体规则参考上方
+   ***********************************/
   mergeData: (data, rule) => {
     let _this = plugin
     let newData = []
