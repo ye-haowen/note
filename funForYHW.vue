@@ -41,7 +41,7 @@ const plugin = {
         newData[index] = _this.cloneData(item)
       }
     } else {
-      newData = JSON.parse(JSON.stringify(data))
+      newData = data ? JSON.parse(JSON.stringify(data)) : data
     }
     return newData
   },
@@ -139,8 +139,9 @@ const plugin = {
    *childrenName:命名子合并项key值，默认值childrenMergeInfo，
    *childrenRule:多层级合并时传入，具体规则参考上方
    ***********************************/
-  mergeData: (data, rule) => {
+  mergeData: (datas, rule) => {
     let _this = plugin
+    let data = _this.cloneData(datas)
     let newData = []
     if (_this.getDataType(data) === 'Array') {
       data.forEach(item => {
@@ -223,6 +224,20 @@ const plugin = {
       throw new TypeError('An unknown error occurred from the mergeData function, and the parameter "data" expects to get an "array" but gets an "' + type + '"')
     }
     return newData
+  },
+  /************************************
+   *data:需要处理的数据
+   *type:Number|String
+   *return:Number
+   ***********************************/
+  toFixedAuto: (number) => {
+    if (number % 1 === 0) {
+      return parseInt(number)
+    } else if (number % 0.1 === 0) {
+      return Number(Number(number).toFixed(1))
+    } else if (number % 0.01 === 0 || number % 0.01 !== 0) {
+      return Number(number.toFixed(2))
+    }
   }
 }
 export default {
@@ -232,5 +247,6 @@ export default {
     Vue.prototype.$clone = plugin.cloneData
     Vue.prototype.$flatten = (data) => { return plugin.flatten(plugin.flatten(data)) }
     Vue.prototype.$mergeData = plugin.mergeData
+    Vue.prototype.$toFixed = plugin.toFixedAuto
   }
 }
