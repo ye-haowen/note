@@ -74,6 +74,11 @@ const plugin = {
         if (itemType === 'Object') {
           let deleteProp = _this.cloneData(item) // 保存一份需要处理的数据
           delete oldData[index]
+          for (let hasKey in oldData) {
+            if (deleteProp.hasOwnProperty(hasKey)) {
+              throw new TypeError('存在相同的key值，无法执行')
+            }
+          }
           return _this.flatten({ ...oldData, ...deleteProp })
         } else if (itemType === 'Array') {
           let newData = []
@@ -203,7 +208,9 @@ const plugin = {
               let otherName = itemRule.name.split('/')
               delete cloneItem[otherName[0]]
               if (itemRule.type === 'add') {
-                flag[otherName[1] || otherName[0]] = Number(flag[otherName[1] || otherName[0]]) + Number(item[otherName[0]])
+                flag[otherName[1] || otherName[0]] = (Number(flag[otherName[1] || otherName[0]]) || 0) + (Number(item[otherName[0]]) || 0)
+              } else if (itemRule.type === 'concat') {
+                flag[otherName[1] || otherName[0]] = flag[otherName[1] || otherName[0]].concat(item[otherName[0]])
               }
             })
           }
@@ -231,14 +238,138 @@ const plugin = {
    *return:Number
    ***********************************/
   toFixedAuto: (number) => {
+    if (isNaN(Number(number))) {
+      return NaN
+    }
+    if (!Number(number) && Number(number) !== 0) {
+      throw new TypeError('Expect to get a number')
+    }
     if (number % 1 === 0) {
       return parseInt(number)
     } else if (number % 0.1 === 0) {
       return Number(Number(number).toFixed(1))
     } else if (number % 0.01 === 0 || number % 0.01 !== 0) {
-      return Number(number.toFixed(2))
+      return Number(Number(number).toFixed(2))
     }
+  },
+  /************************************
+   *data:需要处理的数据
+   *index:切割数值
+   *arr:处理好的数据保留在这个参数
+   *type:Array|----|Number|----|Array
+   *return:Array
+   ***********************************/
+  newSplice: (data, index, arr) => {
+    if (data.length === 0 || !data) {
+      return []
+    }
+    let _this = plugin
+    if (!arr) {
+      arr = []
+    }
+    arr.push(data.splice(0, 5))
+    if (data.length > 0) {
+      _this.newSplice(data, index, arr)
+    }
+    return arr
+  },
+  /************************************
+   *el:到达其视图的id
+   *type:String
+   ***********************************/
+  goElView: (el) => {
+    if (!el) {
+      throw new TypeError('请传入element的"id"')
+    }
+    let ele = document.getElementById(el)
+    if (ele) {
+      ele.scrollIntoView(true)
+    } else {
+      return false
+    }
+  },
+  strToAscII (string, flag) {
+    let strSpecialCharacters = ['%', '/'] // 转化特殊字符'['与']'不可使用
+    if (!flag) {
+      strSpecialCharacters.forEach(item => {
+        string = string.split(item).join('<!--' + item.charCodeAt() + '-->')
+      })
+    } else {
+      let stringArr = string.split('<!--').map(item => {
+        if (item.indexOf('-->') === -1) {
+          return item
+        } else {
+          let innetItem = item.split('-->')
+          innetItem[0] = String.fromCharCode(innetItem[0])
+          return innetItem.join('')
+        }
+      })
+      string = stringArr.join('')
+    }
+    return string
   }
+}
+/**
+*导出execl表格
+*/
+const downloadExcel = (data, titles, orderInfo, excelName) => {
+  orderInfo = orderInfo || {}
+  let aLink = document.createElement('a')
+  let excelHeader = '<tr>' + titles.map(item => '<td style="text-align:left">' + item.title + '</td>').join('') + '</tr>'
+  let excelContent = data.map(itemData => {
+    return '<tr>' + titles.map(itemTitle => '<td style="text-align:left">' + ((itemData[itemTitle.key] !== 0 && !itemData[itemTitle.key]) ? '' : itemData[itemTitle.key]) + '</td>').join('') + '</tr>'
+  })
+  let orderElement = `<table>
+                        <tr>
+                          <td style="text-align:left">订单号：</td>
+                          <td style="text-align:left">${orderInfo.order_code}</td>
+                        </tr>
+                        <tr>
+                          <td style="text-align:left">订单公司：</td>
+                          <td style="text-align:left">${orderInfo.client_name}</td>
+                        </tr>
+                        <tr>
+                          <td style="text-align:left">负责小组：</td>
+                          <td style="text-align:left">${orderInfo.group_name}</td>
+                        </tr>
+                        <tr>
+                          <td style="text-align:left">下单日期：</td>
+                          <td style="text-align:left">${orderInfo.order_time}</td>
+                        </tr>
+                        <tr>
+                          <td></td>
+                          <td></td>
+                        </tr>
+                      </table>`
+  let html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" 
+                    xmlns:x="urn:schemas-microsoft-com:office:excel" 
+                    xmlns="http://www.w3.org/TR/REC-html40">
+              <meta http-equiv="content-type" content="application/vnd.ms-excel; charset="UTF-8">
+              <head>
+                <!--[if gte mso 9]>
+                <xml>
+                <x:ExcelWorkbook>
+                  <x:ExcelWorksheets>
+                    <x:ExcelWorksheet>
+                      <x:Name>${excelName || 'worksheet1'}</x:Name>
+                      <x:WorksheetOptions>
+                        <x:DisplayGridlines/>
+                      </x:WorksheetOptions>
+                    </x:ExcelWorksheet>
+                  </x:ExcelWorksheets>
+                </x:ExcelWorkbook>
+                </xml>
+                <![endif]-->
+              </head>
+              <body>
+                ${Object.keys(orderInfo).length > 0 ? orderElement : ''}
+                <table>${excelHeader}${excelContent.join('')}</table>
+              </body>
+            </html>`
+  let url = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(html)
+  aLink.href = url
+  aLink.download = (excelName ? excelName + '-' : '') + new Date().getTime() + '.xls'
+  aLink.click()
 }
 export default {
   install (Vue) {
@@ -248,5 +379,8 @@ export default {
     Vue.prototype.$flatten = (data) => { return plugin.flatten(plugin.flatten(data)) }
     Vue.prototype.$mergeData = plugin.mergeData
     Vue.prototype.$toFixed = plugin.toFixedAuto
+    Vue.prototype.$newSplice = plugin.newSplice
+    Vue.prototype.$goElView = plugin.goElView
+    Vue.prototype.$strToAscII = plugin.strToAscII
   }
 }
