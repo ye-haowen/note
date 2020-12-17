@@ -100,8 +100,7 @@ export const flatten = (data) => {
 /**
  * @param {Array} datas 处理的数据
  * @param {Object} rule 合并规则
- */
-/************************************
+ * 
  *rule示例
  *{mainRule:'product_id/id',otherRule:[{name:'image/img'},{name:'product_code'},{name:'number',type:'add'}],childrenName:'other_info',childrenRule:{mainRule:['size/size_name','color']}}
  *输出：[
@@ -122,7 +121,7 @@ export const flatten = (data) => {
  *otherRule:其他处理项，name为处理项的key值,type为特殊处理，当前取值仅可为'add'，是在合并时累加该项，当type不存在时  name项会保留在mainRule同一个数据层级，“/”用法参考mainRule
  *childrenName:命名子合并项key值，默认值childrenMergeInfo，
  *childrenRule:多层级合并时传入，具体规则参考上方
- ***********************************/
+ */
 export const mergeData = (datas, rule) => {
   let data = cloneData(datas)
   let newData = []
@@ -211,21 +210,19 @@ export const mergeData = (datas, rule) => {
   return newData
 }
 /**
- * @param {Number} data 需要处理的数据
+ * @param {Number} number 需要处理的数据
+ * @param {Number} precision 精度
  */
-export const toFixedAuto = (number) => {
+export const toFixedAuto = (number, precision = 2) => {
   if (isNaN(Number(number))) {
     return NaN
   }
-  if (!Number(number) && Number(number) !== 0) {
-    throw new TypeError('Expect to get a number')
-  }
-  if (number % 1 === 0) {
-    return parseInt(number)
-  } else if (number % 0.1 === 0) {
-    return Number(Number(number).toFixed(1))
-  } else if (number % 0.01 === 0 || number % 0.01 !== 0) {
-    return Number(Number(number).toFixed(2))
+  if (precision === 0) {
+    return Math.round(number)
+  } else if (precision) {
+    return Math.round(number * Math.pow(10, precision)) / Math.pow(10, precision)
+  } else {
+    return number
   }
 }
 /**
