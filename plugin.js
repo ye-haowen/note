@@ -12,15 +12,12 @@ export const getDataType = (data) => {
 /**
  * @param {Number,String,Date} date 需要处理的时间戳数据
  */
-export const getTime = (date) => {
+export const getTime = (date, connector = '-') => {
   if (date && !new Date(date)) {
     throw new TypeError('The correct format was not obtained for function "getTime"')
   }
-  let nowDate = date ? new Date(date) : new Date()
-  const year = nowDate.getFullYear()
-  const month = nowDate.getMonth() + 1
-  const data = nowDate.getDate()
-  return [year, month.toString()[1] ? month : '0' + month, data.toString()[1] ? data : '0' + data].join('-')
+  let newDate = (date ? new Date(date) : new Date()).toLocaleDateString()
+  return newDate.replace(/\//g, connector)
 }
 /**
  * @param {any} data 需要深度克隆的数据
